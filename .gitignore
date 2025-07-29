@@ -1,0 +1,45 @@
+# === Backend Python/Django ===
+
+# Cache e bytecode Python
+__pycache__/
+*.py[cod]
+
+# Banco de dados local SQLite (se estiver usando)
+*.sqlite3
+
+# Logs
+*.log
+
+# Ambiente virtual (normalmente na raiz backend/.venv ou só .venv)
+.venv/
+env/
+ENV/
+
+# Arquivos de configuração sensíveis
+.env
+
+# Migrações
+# IMPORTANTE: se quiser versionar migrações, COMENTE essa linha
+migrations/
+
+# Django static files (se você gerar localmente e não for versionar)
+staticfiles/
+static/
+
+# === Frontend React ===
+
+# Pacotes do Node
+node_modules/
+
+# Build do React (gerado após `npm run build` ou `yarn build`)
+build/
+dist/
+
+# Sistema e IDE
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Testes (opcional, se usar pytest)
+.pytest_cache/
