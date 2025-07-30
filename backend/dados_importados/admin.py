@@ -1,18 +1,24 @@
 from django.contrib import admin
-from .models import DesembaracoAduaneiro
+from .models import DadosImportados
 
-@admin.register(DesembaracoAduaneiro)
-class DesembaracoAduaneiroAdmin(admin.ModelAdmin):
+@admin.register(DadosImportados)
+class DadosImportadosAdmin(admin.ModelAdmin):
     list_display = [
-        'referencia_giant', 'mawb', 'codigos', 'status_liberacao', 'data_liberacao',
-        'valor', 'peso', 'data_emissao', 'data_prevista_entrega', 'eventos',
-        'dias_atraso', 'tipo_justificativa_atraso', 'justificativa_atraso', 'canal_cor',
-        'data_chegada_destino', 'data_ci_ok', 'data_di', 'data_ead', 'data_entrega_destino',
-        'data_estimada', 'data_hawb', 'data_li', 'data_liberacao_ccr', 'data_nfe',
-        'data_nfe_deloitte', 'hawb', 'icms_pago', 'li', 'numero_di', 'numero_nfe',
-        'numero_nfe_deloitte', 'ok_to_ship', 'pc', 'peso_cobravel', 'status_import_export', 'status_li'
+        'ref_giant', 'mawb', 'hawb', 'q', 'c3', 'deliveryid', 'sostatus_releasedonholdreturned',
+        'data_liberacao', 'cipbrl', 'pc', 'peso', 'peso_cobravel', 'tipo', 'pupdt', 'ciok',
+        'lientrydt', 'liok', 'ok_to_ship', 'li', 'hawbdt', 'estimatedbookingdt', 'arrivaldestinationdt',
+        'solicitacao_fundos', 'fundos_recebidos', 'eadidt', 'diduedt', 'diduenumber', 'icmspago',
+        'canal_cor', 'data_liberacao_ccr', 'data_nfe', 'numero_nfe', 'nftgdt', 'nftg', 'dlvatdestination',
+        'status_impexp', 'data_estimada', 'eventos', 'real_lead_time', 'ship_failure_days',
+        'tipo_justificativa_atraso', 'justificativa_atraso'
     ]
-    search_fields = ['referencia_giant', 'mawb', 'codigos']
-    list_filter = ['status_liberacao', 'status_import_export', 'status_li']
-    ordering = ['-data_liberacao']
 
+    search_fields = ['ref_giant', 'mawb', 'hawb', 'deliveryid']
+
+    list_filter = [
+        'sostatus_releasedonholdreturned',
+        'status_impexp',
+        'tipo_justificativa_atraso'
+    ]
+
+    ordering = ['-data_liberacao']

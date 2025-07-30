@@ -1,186 +1,221 @@
 ﻿import os
-import sys
 import time
-import logging
-import django
+import shutil
+from datetime import datetime
+from decimal import Decimal
 import xml.etree.ElementTree as ET
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-from django.db import transaction
 
-def setup_django():
-    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'meu_projeto.settings')
-    django.setup()
+import django
+import sys
 
-def setup_logging():
-    logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
-    return logging.getLogger(__name__)
+# Configurações Django
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'meu_projeto.settings')
+django.setup()
 
-MONITORED_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), 'pastaMonitorada'))
-MAX_RETRIES = 5
+from dados_importados.models import DadosImportados
+from django.db.models import DateField, DecimalField
+from django.forms.models import model_to_dict
 
-FIELD_MAP = {
-    'Q': 'ref_quarter',
-    'C3': 'ge_celma',
-    'DELIVERYID': 'codigos',
-    'SOSTATUS-RELEASEDONHOLDRETURNED': 'status_liberacao',
-    'MAWB': 'mawb',
-    'HAWB': 'hawb',
-    'CIPBRL': 'valor',
-    'GROSSWEIGHT': 'peso',
-    'CHARGEABLEWEIGHT': 'peso_cobravel',
-    'PUPDT': 'data_emissao',
-    'CIOK': 'data_ci_ok',
-    'ESTIMATEDBOOKINGDT': 'data_prevista_entrega',
-    'ARRIVALDESTINATIONDT': 'data_chegada_destino',
-    'REF.GIANT': 'referencia_giant',
-    'DIDUENUMBER': 'numero_di',
-    'DIDUEDT': 'data_di',
-    'ICMSPAID': 'icms_pago',
-    'CHANNELCOLOR': 'canal_cor',
-    'CCRLSDDT': 'data_liberacao_ccr',
-    'NFEDT': 'data_nfe',
-    'NFE': 'numero_nfe',
-    'NFTGDT': 'data_nfe_deloitte',
-    'NFTG': 'numero_nfe_deloitte',
-    'DLVATDESTINATION': 'data_entrega_destino',
-    'StatusIMPEXP': 'status_import_export',
-    'ESTIMATEDDATE': 'data_estimada',
-    'EVENT': 'eventos',
-    'SHIPFAILUREDAYS': 'dias_atraso',
-    'TYPE': 'tipo_justificativa_atraso',
-    'FAILUREJUSTIFICATION': 'justificativa_atraso',
-    'LIOK': 'status_li',
-    'OKTOSHIP': 'ok_to_ship',
-    'LI': 'li',
-    'LIENTRYDT': 'data_li',
-    'HAWBDT': 'data_hawb',
-    'EADIDT': 'data_ead',
-    'PC': 'pc',
-}
+# Pastas
+BASE_DIR = os.path.dirname(__file__)
+PASTA_MONITORADA = os.path.join(BASE_DIR, 'pastaMonitorada')
+PASTA_LIDOS = os.path.join(BASE_DIR, 'pastaLidos')
+os.makedirs(PASTA_MONITORADA, exist_ok=True)
+os.makedirs(PASTA_LIDOS, exist_ok=True)
 
-class XMLFileHandler(FileSystemEventHandler):
+
+def parse_date(date_str):
+    if not date_str:
+        return None
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(date_str.strip(), fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+class XMLHandler(FileSystemEventHandler):
     def __init__(self):
         super().__init__()
-        self.file_hashes = {}
-        self.success_count = 0
-        self.error_count = 0
-
-    def _calculate_file_hash(self, file_path):
-        try:
-            with open(file_path, 'rb') as file:
-                return hashlib.md5(file.read()).hexdigest()
-        except Exception as error:
-            logger.warning(f"Falha ao calcular hash de {file_path}: {error}")
-            return None
-
-    def _log_file_change(self, action, file_path):
-        """Espera arquivo parar de crescer para garantir cópia completa."""
-        try:
-            if not os.path.exists(file_path):
-                return False
-
-            last_size = -1
-            for _ in range(10):  # até 10 segundos esperando estabilizar
-                current_size = os.path.getsize(file_path)
-                if current_size == last_size:
-                    break
-                last_size = current_size
-                time.sleep(1)
-            else:
-                logger.warning(f"[IGNORADO] {os.path.basename(file_path)} ainda está sendo escrito.")
-                return False
-
-            current_hash = self._calculate_file_hash(file_path)
-            if current_hash and current_hash != self.file_hashes.get(file_path):
-                self.file_hashes[file_path] = current_hash
-                print("=" * 80)
-                logger.info(f"[{action}] {os.path.basename(file_path)}")
-                logger.info(f"[HASH] {current_hash}")
-                print("=" * 80)
-                return True
-            return False
-        except Exception as e:
-            logger.warning(f"[ERRO] ao verificar estabilidade do arquivo: {e}")
-            return False
-
-    def _parse_xml(self, file_path):
-        for attempt in range(MAX_RETRIES):
-            try:
-                with open(file_path, 'r', encoding='utf-8') as file:
-                    return ET.parse(file).getroot()
-            except Exception as error:
-                logger.warning(f"Tentativa {attempt + 1}: Falha ao ler {file_path} - {error}")
-                time.sleep(1)
-        return None
-
-    def _process_xml_item(self, xml_item):
-        item_data = {}
-        for xml_tag, model_field in FIELD_MAP.items():
-            raw_value = xml_item.findtext(xml_tag, '').strip() or None
-            item_data[model_field] = raw_value
-
-        if not item_data.get('codigos'):
-            item_data['codigos'] = f"SEM-CODIGO-{int(time.time())}"
-
-        try:
-            with transaction.atomic():
-                from dados_importados.models import DesembaracoAduaneiro
-                DesembaracoAduaneiro.objects.update_or_create(
-                    codigos=item_data['codigos'],
-                    defaults=item_data
-                )
-            self.success_count += 1
-        except Exception as error:
-            logger.error(f"Erro ao salvar item: {error}", exc_info=True)
-            self.error_count += 1
-
-    def _update_counters(self, total_items):
-        print(f"[PROGRESSO] Itens no XML: {total_items} | Sucessos acumulados: {self.success_count} | Erros acumulados: {self.error_count}")
-
-    def _process_xml_file(self, file_path):
-        xml_root = self._parse_xml(file_path)
-        if not xml_root:
-            self.error_count += 1
-            return
-
-        items = xml_root.findall('NewReportItem')
-        for xml_item in items:
-            self._process_xml_item(xml_item)
-
-        self._update_counters(len(items))
+        self.arquivos_lidos_com_sucesso = 0
+        self.arquivos_com_erro = 0
+        self.itens_inseridos = 0
+        self.itens_atualizados = 0
+        self.itens_sem_alteracao = 0
 
     def on_created(self, event):
         if not event.is_directory and event.src_path.lower().endswith('.xml'):
-            if self._log_file_change("CRIADO", event.src_path):
-                self._process_xml_file(event.src_path)
+            print(f"[DETECTADO] Novo arquivo XML: {event.src_path}")
+            try:
+                self.process_file(event.src_path)
+                self.arquivos_lidos_com_sucesso += 1
+            except Exception as e:
+                print(f"[ERRO] Falha no processamento do arquivo {event.src_path}: {e}")
+                self.arquivos_com_erro += 1
 
-    def on_modified(self, event):
-        if not event.is_directory and event.src_path.lower().endswith('.xml'):
-            if self._log_file_change("MODIFICADO", event.src_path):
-                self._process_xml_file(event.src_path)
+    def process_file(self, path):
+        print(f"[INICIANDO PROCESSAMENTO] Arquivo: {path}")
+        time.sleep(2)  # Aguarda o arquivo estabilizar
 
-if __name__ == '__main__':
-    import hashlib
+        if not os.path.exists(path):
+            print(f"[ERRO] Arquivo não encontrado após espera: {path}")
+            raise FileNotFoundError(f"Arquivo {path} não existe")
 
-    logger = setup_logging()
-    setup_django()
+        try:
+            tree = ET.parse(path)
+            root = tree.getroot()
+        except ET.ParseError as e:
+            print(f"[ERRO XML] Arquivo inválido: {path} - {e}")
+            raise
 
-    os.makedirs(MONITORED_DIR, exist_ok=True)
-    logger.info(f"Monitorando: {MONITORED_DIR}")
+        items = root.findall('.//NewReportItem')
+        if not items:
+            print(f"[AVISO] Nenhum <NewReportItem> encontrado no arquivo {path}")
+            return
 
+        tag_to_field = {
+            'REF.GIANT': 'ref_giant',
+            'MAWB': 'mawb',
+            'HAWB': 'hawb',
+            'Q': 'q',
+            'C3': 'c3',
+            'DELIVERYID': 'deliveryid',
+            'SOSTATUS-RELEASEDONHOLDRETURNED': 'sostatus_releasedonholdreturned',
+            'RELEASEDDT': 'data_liberacao',
+            'CIPBRL': 'cipbrl',
+            'PC': 'pc',
+            'GROSSWEIGHT': 'peso',
+            'CHARGEABLEWEIGHT': 'peso_cobravel',
+            'TYPE': 'tipo',
+            'PUPDT': 'pupdt',
+            'CIOK': 'ciok',
+            'LIENTRYDT': 'lientrydt',
+            'LIOK': 'liok',
+            'OKTOSHIP': 'ok_to_ship',
+            'LI': 'li',
+            'HAWBDT': 'hawbdt',
+            'ESTIMATEDBOOKINGDT': 'estimatedbookingdt',
+            'ARRIVALDESTINATIONDT': 'arrivaldestinationdt',
+            'FUNDSREQUEST': 'solicitacao_fundos',
+            'FundsReceived': 'fundos_recebidos',
+            'EADIDT': 'eadidt',
+            'DIDUEDT': 'diduedt',
+            'DIDUENUMBER': 'diduenumber',
+            'ICMSPAID': 'icmspago',
+            'CHANNELCOLOR': 'canal_cor',
+            'CCRLSDDT': 'data_liberacao_ccr',
+            'NFEDT': 'data_nfe',
+            'NFE': 'numero_nfe',
+            'NFTGDT': 'nftgdt',
+            'NFTG': 'nftg',
+            'DLVATDESTINATION': 'dlvatdestination',
+            'StatusIMPEXP': 'status_impexp',
+            'ESTIMATEDDATE': 'data_estimada',
+            'EVENT': 'eventos',
+            'REALLEADTIME': 'real_lead_time',
+            'SHIPFAILUREDAYS': 'ship_failure_days',
+            'FAILUREJUSTIFICATION': 'justificativa_atraso',
+        }
+
+        for item in items:
+            data = {}
+
+            for tag_xml, field_name in tag_to_field.items():
+                elem = item.find(tag_xml)
+                if elem is not None and elem.text:
+                    data[field_name] = elem.text.strip()
+
+            # Conversão de tipos
+            for field in DadosImportados._meta.get_fields():
+                if not hasattr(field, 'column'):
+                    continue
+                name = field.name
+                raw = data.get(name)
+                if isinstance(field, DateField) and isinstance(raw, str):
+                    data[name] = parse_date(raw)
+                elif isinstance(field, DecimalField) and isinstance(raw, str):
+                    try:
+                        data[name] = Decimal(raw.replace(',', '.'))
+                    except Exception:
+                        data[name] = None
+
+            if not data.get('ref_giant'):
+                print("[IGNORADO] Item sem REF.GIANT.")
+                continue
+
+            # Verifica se já existe o objeto no banco
+            obj = None
+            try:
+                obj = DadosImportados.objects.get(ref_giant=data['ref_giant'])
+            except DadosImportados.DoesNotExist:
+                pass
+
+            def normalize(v):
+                if isinstance(v, datetime):
+                    return v.date()
+                if v is None:
+                    return ''
+                return str(v).strip()
+
+            if obj is None:
+                DadosImportados.objects.create(**data)
+                self.itens_inseridos += 1
+                print(f"[NOVO] {data['ref_giant']}")
+            else:
+                obj_dict = model_to_dict(obj)
+                obj_dict_filtered = {k: v for k, v in obj_dict.items() if k in data}
+
+                dados_iguais = all(normalize(obj_dict_filtered.get(k)) == normalize(v) for k, v in data.items())
+
+                if dados_iguais:
+                    self.itens_sem_alteracao += 1
+                    print(f"[SEM ALTERAÇÃO] {data['ref_giant']}")
+                else:
+                    for k, v in data.items():
+                        setattr(obj, k, v)
+                    obj.save()
+                    self.itens_atualizados += 1
+                    print(f"[ATUALIZADO] {data['ref_giant']}")
+
+        # Move o arquivo para pastaLidos
+        destino = os.path.join(PASTA_LIDOS, os.path.basename(path))
+        shutil.move(path, destino)
+        print(f"[ARQUIVO MOVIDO] {destino}")
+
+
+def main():
+    print("[SISTEMA] Iniciando monitoramento...")
+    print(f"[CONFIG] Pasta monitorada: {os.path.abspath(PASTA_MONITORADA)}")
+    print(f"[CONFIG] Pasta de destino: {os.path.abspath(PASTA_LIDOS)}")
+
+    event_handler = XMLHandler()
     observer = Observer()
-    handler = XMLFileHandler()
-    observer.schedule(handler, path=MONITORED_DIR, recursive=False)
+    observer.schedule(event_handler, PASTA_MONITORADA, recursive=False)
     observer.start()
-    logger.info("Monitoramento ativo. Pressione Ctrl+C para parar.")
+    print("[SISTEMA] Monitoramento ativo")
 
     try:
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        logger.info("Encerrando...")
-        logger.info(f"Resumo final: {handler.success_count} sucesso(s), {handler.error_count} erro(s).")
+        print("\n[SISTEMA] Encerrando monitoramento...")
         observer.stop()
     observer.join()
+
+    # Exibe resumo final
+    print("\n[RESUMO FINAL]")
+    print(f"Arquivos lidos com sucesso: {event_handler.arquivos_lidos_com_sucesso}")
+    print(f"Arquivos com erro: {event_handler.arquivos_com_erro}")
+    print(f"Itens inseridos: {event_handler.itens_inseridos}")
+    print(f"Itens atualizados: {event_handler.itens_atualizados}")
+    print(f"Itens sem alteração: {event_handler.itens_sem_alteracao}")
+
+    print("[SISTEMA] Monitoramento encerrado")
+
+
+if __name__ == "__main__":
+    main()
