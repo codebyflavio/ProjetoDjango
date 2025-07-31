@@ -5,7 +5,7 @@ from django.views.generic import RedirectView
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),
-    path('', RedirectView.as_view(url='/api/')),  # redireciona raiz para /api/
+    path('', RedirectView.as_view(url='/api/')),
 ]
 
 
