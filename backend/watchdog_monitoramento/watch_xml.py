@@ -2,14 +2,14 @@
 import time
 import shutil
 from datetime import datetime, date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 import xml.etree.ElementTree as ET
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import django
 import sys
 
-
+# Setup Django
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'meu_projeto.settings')
 django.setup()
@@ -17,7 +17,7 @@ django.setup()
 from dados_importados.models import DadosImportados
 from django.db.models import DateField, DecimalField
 
-
+# Configuração de cores para os logs
 class Colors:
     GREEN = '\033[92m'
     YELLOW = '\033[93m'
@@ -60,41 +60,97 @@ def parse_date(date_str):
     return None
 
 def dados_sao_iguais(obj, data):
-    def normaliza(valor):
+    def normaliza_valor(valor, field):
         if valor is None or valor == "":
             return None
-        if isinstance(valor, str):
-            s = valor.strip().lower()
-            if s in ("none", "null", ""):
-                return None
+        
+        # Para campos Decimal
+        if isinstance(field, DecimalField):
             try:
-                if "." in s or "," in s:
-                    return float(s.replace(",", "."))
-                return int(s)
-            except Exception:
-                return s
-        if isinstance(valor, Decimal):
-            return float(valor)
-        if isinstance(valor, (datetime, date)):
-            return valor.strftime("%Y-%m-%d")
-        return valor
+                if isinstance(valor, str):
+                    return Decimal(valor.replace(',', '.'))
+                if isinstance(valor, (Decimal, float, int)):
+                    return Decimal(str(valor))
+            except (InvalidOperation, ValueError):
+                return None
+        
+        # Para campos Date
+        if isinstance(field, DateField):
+            if isinstance(valor, str):
+                return parse_date(valor)
+            if isinstance(valor, (date, datetime)):
+                return valor.date() if isinstance(valor, datetime) else valor
+        
+        # Para outros campos
+        return str(valor).strip().lower() if valor else None
 
-    for k, v_xml in data.items():
-        v_banco = getattr(obj, k, None)
-        if normaliza(v_banco) != normaliza(v_xml):
+    for field in DadosImportados._meta.get_fields():
+        if not hasattr(field, 'column') or field.name not in data:
+            continue
+            
+        valor_xml = normaliza_valor(data[field.name], field)
+        valor_banco = normaliza_valor(getattr(obj, field.name), field)
+        
+        if valor_xml != valor_banco:
+            log_info(f"Diferença encontrada no campo {field.name}: "
+                    f"Banco='{valor_banco}' vs XML='{valor_xml}'")
             return False
+            
     return True
 
 def process_xml_content(xml_content: str) -> tuple[int, int, int]:
     try:
         root = ET.fromstring(xml_content)
         items = root.findall('.//NewReportItem')
+        
+        if not items:
+            log_warning("XML não contém nenhum item NewReportItem")
+            return 0, 0, 0
+            
         log_info(f"Processando XML com {len(items)} itens encontrados")
         
         tag_to_field = {
-            'REF.GIANT': 'ref_giant',
+            'Q': 'q',
+            'C3': 'c3',
+            'DELIVERYID': 'deliveryid',
+            'SOSTATUS-RELEASEDONHOLDRETURNED': 'sostatus_releasedonholdreturned',
+            'RELEASEDDT': 'data_liberacao',
             'MAWB': 'mawb',
             'HAWB': 'hawb',
+            'CIPBRL': 'cipbrl',
+            'REF.GIANT': 'ref_giant',
+            'PC': 'pc',
+            'GROSSWEIGHT': 'peso',
+            'CHARGEABLEWEIGHT': 'peso_cobravel',
+            'TYPE': 'tipo',
+            'PUPDT': 'pupdt',
+            'CIOK': 'ciok',
+            'LIENTRYDT': 'lientrydt',
+            'LIOK': 'liok',
+            'OKTOSHIP': 'ok_to_ship',
+            'LI': 'li',
+            'HAWBDT': 'hawbdt',
+            'ESTIMATEDBOOKINGDT': 'estimatedbookingdt',
+            'ARRIVALDESTINATIONDT': 'arrivaldestinationdt',
+            'FUNDSREQUEST': 'solicitacao_fundos',
+            'FundsReceived': 'fundos_recebidos',
+            'EADIDT': 'eadidt',
+            'DIDUEDT': 'diduedt',
+            'DIDUENUMBER': 'diduenumber',
+            'ICMSPAID': 'icmspago',
+            'CHANNELCOLOR': 'canal_cor',
+            'CCRLSDDT': 'data_liberacao_ccr',
+            'NFEDT': 'data_nfe',
+            'NFE': 'numero_nfe',
+            'NFTGDT': 'nftgdt',
+            'NFTG': 'nftg',
+            'DLVATDESTINATION': 'dlvatdestination',
+            'StatusIMPEXP': 'status_impexp',
+            'ESTIMATEDDATE': 'data_estimada',
+            'EVENT': 'eventos',
+            'REALLEADTIME': 'real_lead_time',
+            'SHIPFAILUREDAYS': 'ship_failure_days',
+            'FAILUREJUSTIFICATION': 'justificativa_atraso'
         }
 
         inserted = 0
@@ -111,47 +167,50 @@ def process_xml_content(xml_content: str) -> tuple[int, int, int]:
                     else:
                         data[field_name] = elem.text.strip()
 
+            # Conversão de tipos
             for field in DadosImportados._meta.get_fields():
-                if not hasattr(field, 'column'):
+                if not hasattr(field, 'column') or field.name not in data:
                     continue
-                name = field.name
-                raw = data.get(name)
+                    
+                raw = data[field.name]
                 if isinstance(field, DateField) and isinstance(raw, str):
-                    data[name] = parse_date(raw)
+                    data[field.name] = parse_date(raw)
                 elif isinstance(field, DecimalField) and isinstance(raw, str):
                     try:
-                        data[name] = Decimal(raw.replace(',', '.'))
-                    except Exception:
-                        data[name] = None
+                        data[field.name] = Decimal(raw.replace(',', '.'))
+                    except (InvalidOperation, ValueError):
+                        data[field.name] = None
 
             if not data.get('ref_giant'):
-                log_warning(f"Item sem REF.GIANT encontrado, ignorando")
+                log_warning("Item sem REF.GIANT encontrado, ignorando")
                 continue
 
             try:
                 obj = DadosImportados.objects.get(ref_giant=data['ref_giant'])
             except DadosImportados.DoesNotExist:
-                obj = None
-
-            if obj is None:
                 DadosImportados.objects.create(**data)
                 inserted += 1
                 log_success(f"Novo item inserido - REF.GIANT: {data['ref_giant']}")
+                continue
+
+            if dados_sao_iguais(obj, data):
+                unchanged += 1
+                log_info(f"Item sem alterações - REF.GIANT: {data['ref_giant']}")
             else:
-                if dados_sao_iguais(obj, data):
-                    unchanged += 1
-                    log_info(f"Item sem alterações - REF.GIANT: {data['ref_giant']}")
-                else:
-                    for k, v in data.items():
-                        setattr(obj, k, v)
-                    obj.save()
-                    updated += 1
-                    log_success(f"Item atualizado - REF.GIANT: {data['ref_giant']}")
+                log_info(f"Diferenças detectadas para REF.GIANT: {data['ref_giant']}")
+                for k, v in data.items():
+                    setattr(obj, k, v)
+                obj.save()
+                updated += 1
+                log_success(f"Item atualizado - REF.GIANT: {data['ref_giant']}")
 
         return inserted, updated, unchanged
         
+    except ET.ParseError as e:
+        log_error(f"Erro ao parsear XML: {str(e)}")
+        return 0, 0, 0
     except Exception as e:
-        log_error(f"Erro ao processar XML: {str(e)}")
+        log_error(f"Erro inesperado ao processar XML: {str(e)}")
         return 0, 0, 0
 
 class XMLHandler(FileSystemEventHandler):
@@ -179,7 +238,7 @@ class XMLHandler(FileSystemEventHandler):
             filename = os.path.basename(event.src_path)
             try:
                 log_info(f"Novo arquivo detectado: {filename}")
-                time.sleep(2)  
+                time.sleep(2)  # Espera para garantir escrita completa
                 
                 with open(event.src_path, encoding="utf-8") as f:
                     xml_content = f.read()
@@ -195,7 +254,7 @@ class XMLHandler(FileSystemEventHandler):
                 
             except Exception as e:
                 self.arquivos_com_erro += 1
-                log_error(f"Falha no processamento do arquivo {filename}: {e}")
+                log_error(f"Falha no processamento do arquivo {filename}: {str(e)}")
             
             self.print_status()
 
