@@ -42,7 +42,9 @@ class DadosImportados(models.Model):
     real_lead_time = models.CharField(max_length=255, blank=True, null=True, verbose_name="Real Lead Time")
     ship_failure_days = models.CharField(max_length=255, blank=True, null=True, verbose_name="Ship Failure Days")
     tipo_justificativa_atraso = models.CharField(max_length=255, blank=True, null=True, verbose_name="Tipo Justificativa Atraso")  
-    justificativa_atraso = models.CharField(max_length=500, blank=True, null=True, verbose_name="Justificativa Atraso")  
+    justificativa_atraso = models.CharField(max_length=500, blank=True, null=True, verbose_name="Justificativa Atraso")
+    
+      
 
     class Meta:
         db_table = 'dados_importados'

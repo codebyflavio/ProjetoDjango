@@ -1,8 +1,8 @@
-﻿# dados_importados/urls.py - Define as rotas/endpoints da app dados_importados
-
-from django.urls import path
-from .views import example_api
+﻿from django.urls import path
+from django.shortcuts import redirect
+from .views import listar_dados
 
 urlpatterns = [
-    path('example/', example_api, name='example_api'),
+    path('', lambda request: redirect('dados-listagem')),  # redireciona /api-backend/ para /api-backend/dados/
+    path('dados/', listar_dados, name='dados-listagem'),
 ]

@@ -2,7 +2,6 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
-# Carregar variáveis de ambiente
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,22 +19,18 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',  
-
-    # Seus apps
     'dados_importados',
     'api',
-
-    # Bibliotecas de terceiros
     'corsheaders',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-
-    'corsheaders.middleware.CorsMiddleware',  # Deve vir logo após o SessionMiddleware
+    
+    'corsheaders.middleware.CorsMiddleware',  # Deve vir ANTES de CommonMiddleware
     'django.middleware.common.CommonMiddleware',
-
+    
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -93,12 +88,25 @@ TIME_ZONE = 'America/Sao_Paulo'
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = 'static/'
-
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-]
+STATIC_URL = '/static/'
 
 
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# --------- CORS --------------
+
+# Adicione a porta 5500 que você usa no frontend (Live Server do VSCode, por exemplo)
+CORS_ALLOW_ALL_ORIGINS = True  # No settings.py (apenas para dev)
+
+# Alternativa (libera tudo - para desenvolvimento, mas não recomendado em produção):
+# CORS_ALLOW_ALL_ORIGINS = True
+# settings.py (adicione no final)
+
+REST_FRAMEWORK = {
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10,
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.OrderingFilter',
+    ],
+}

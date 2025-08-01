@@ -1,0 +1,22 @@
+﻿import xml.etree.ElementTree as ET
+
+def extrair_tags_xml(caminho_arquivo):
+    tree = ET.parse(caminho_arquivo)
+    root = tree.getroot()
+    
+    tags = set()
+    
+    def coletar_tags(elemento):
+        tags.add(elemento.tag)
+        for filho in elemento:
+            coletar_tags(filho)
+    
+    coletar_tags(root)
+    
+    return tags
+
+if __name__ == "__main__":
+    caminho = r'backend\watchdog_monitoramento\1642 linhas Dia 24.XML'  # caminho RAW para evitar problemas com "\"
+    tags = extrair_tags_xml(caminho)
+    for tag in sorted(tags):
+        print(tag)

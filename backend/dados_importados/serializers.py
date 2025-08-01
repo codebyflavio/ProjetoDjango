@@ -1,7 +1,7 @@
 ﻿from rest_framework import serializers
-from .models import DadosImportados
+from dados_importados.models import DadosImportados
 
 class DadosImportadosSerializer(serializers.ModelSerializer):
     class Meta:
         model = DadosImportados
-        fields = '__all__'
+        fields = '__all__'  # Todos os campos do modelo
