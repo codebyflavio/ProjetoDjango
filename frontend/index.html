@@ -1,0 +1,65 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Giant Cargo - Tracking</title>
+  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- AG Grid CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.1/styles/ag-grid.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.1/styles/ag-theme-alpine.css">
+</head>
+<body>
+  <header class="dashboard__header">
+    <h1 class="dashboard__title"><i class="fas fa-ship"></i> Giant Cargo - Tracking</h1>
+    <div class="controls">
+      <div class="search-container">
+        <i class="fas fa-search search-icon" aria-hidden="true"></i>
+        <input
+          type="text"
+          id="search-input"
+          class="search-input"
+          placeholder="Procurar..."
+          aria-label="Pesquisar"
+        />
+      </div>
+    </div>
+  </header>
+
+  <div class="table-container">
+    <div class="table-toolbar">
+      <div class="pagination-info">
+        Mostrando <span id="showing-from">0</span>–<span id="showing-to">0</span> de <span id="total-items">0</span>
+      </div>
+      <div class="pagination-controls">
+        <select id="items-per-page">
+          <option value="10" selected>10 registros</option>
+          <option value="25">25 registros</option>
+          <option value="50">50 registros</option>
+          <option value="100">100 registros</option>
+        </select>
+        <button id="first-page" class="pagination-button" title="Primeira página" aria-label="Primeira página">
+          <i class="fas fa-step-backward"></i>
+        </button>
+        <button id="prev-page" class="pagination-button" title="Página anterior" aria-label="Página anterior">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+        <button id="next-page" class="pagination-button" title="Próxima página" aria-label="Próxima página">
+          <i class="fas fa-chevron-right"></i>
+        </button>
+        <button id="last-page" class="pagination-button" title="Última página" aria-label="Última página">
+          <i class="fas fa-step-forward"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- AG Grid -->
+    <div id="myGrid" class="ag-theme-alpine"></div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.1/dist/ag-grid-community.min.js"></script>
+  <script src="./script.js"></script>
+</body>
+</html>
