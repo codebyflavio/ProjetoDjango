@@ -110,3 +110,10 @@ REST_FRAMEWORK = {
         'rest_framework.filters.OrderingFilter',
     ],
 }
+
+AUTH_USER_MODEL = 'auth.User'  # Modelo padrão de usuário
+
+# Adicione no final do arquivo
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/'
