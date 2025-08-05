@@ -1,115 +1,42 @@
-# Projeto Django com Monitoramento XML
+📦 Projeto Django - Sistema de Gerenciamento de Cargas
 
-Este projeto é uma aplicação Django que monitora uma pasta em busca de arquivos XML, processa esses arquivos e armazena os dados em um banco de dados PostgreSQL. Os dados podem ser visualizados através de uma interface web React.
+🌟 Visão Geral
 
-## Estrutura do Projeto
+Este é um sistema completo para gerenciamento de operações logísticas internacionais, desenvolvido com Django e tecnologias modernas para controle de cargas aéreas e marítimas.
 
-```
-ProjetoDjango/
-├── backend/              # Aplicação Django
-│   ├── api/              # API REST para acesso aos dados
-│   ├── dados_importados/ # Modelos e views para dados importados
-│   ├── meu_projeto/       # Configurações do projeto Django
-│   ├── watchdog_monitoramento/ # Script de monitoramento de arquivos XML
-│   └── manage.py         # Script de gerenciamento do Django
-├── frontend/             # Aplicação React para interface web
-└── README.md             # Este arquivo
-```
+🚀 Tecnologias Utilizadas
+Backend: Django 4.2 + Django REST Framework
+Frontend: HTML5, CSS3, JavaScript Vanilla
+Banco de Dados: PostgreSQL
+Ferramentas: Celery (para tarefas assíncronas), Redis (cache/broker)
 
-## Funcionalidades
+✨ Principais Funcionalidades
+🛃 Controle completo de documentos de importação/exportação
+✈️ Rastreamento de cargas aéreas (MAWB/HAWB)
+🚢 Gerenciamento de cargas marítimas (Bill of Lading)
+📊 Dashboard analítico com indicadores operacionais
+🔍 Sistema avançado de busca e filtros
+📝 Edição em linha de campos críticos
 
-### 1. Monitoramento de Arquivos XML
-O script em `backend/watchdog_monitoramento/watch_xml.py` monitora continuamente a pasta `pastaMonitorada` em busca de novos arquivos XML. Quando um arquivo é detectado:
+🛠️ Configuração do Ambiente
+Python 3.10+
+Node.js (para assets estáticos)
 
-1. Aguarda a estabilização do arquivo (para garantir que o arquivo foi completamente escrito)
-2. Lê e parseia o conteúdo XML
-3. Extrai os dados e os armazena no banco de dados
+Instalação
+# 1. Clone o repositório
+git clone https://github.com/codebyflavio/ProjetoDjango.git
+cd ProjetoDjango
+# 2. Configure as variáveis de ambiente
+cp .env.example .env
 
-### 2. API REST
-A API REST em `backend/api/` fornece endpoints para acessar os dados importados:
+🔄 Fluxo de Trabalho
+Extração de dados: Processamento automatizado de XMLs de carga
+Classificação: Sistema inteligente de categorização
+Aprovação: Fluxo de trabalho com múltiplos níveis
+Monitoramento: Acompanhamento em tempo real
 
-- `GET /api/desembaraco/` - Retorna todos os dados importados
+📄 Licença
+Distribuído sob licença MIT. Veja LICENSE para mais informações.
 
-### 3. Interface Web
-A interface web em `frontend/` exibe os dados importados em uma tabela interativa.
-
-## Modelos de Dados
-
-Os dados importados são organizados em modelos relacionados para melhor manutenção:
-
-- `DadosImportados` - Modelo principal
-- `DocumentInfo` - Informações sobre documentos
-- `StatusInfo` - Informações sobre status
-- `DateInfo` - Informações sobre datas
-- `DeliveryInfo` - Informações sobre entrega
-- `DelayInfo` - Informações sobre atrasos
-- `FundInfo` - Informações sobre fundos
-
-## Como Usar
-
-### Configuração do Ambiente
-
-1. Instale as dependências do backend:
-```bash
-cd backend
-pip install -r requirements.txt
-```
-
-2. Configure as variáveis de ambiente criando um arquivo `.env` na pasta `backend/`:
-```
-SECRET_KEY=sua_secret_key_aqui
-DB_NAME=nome_do_banco
-DB_USER=usuario_do_banco
-DB_PASSWORD=senha_do_banco
-DB_HOST=localhost
-DB_PORT=5432
-```
-
-3. Execute as migrações do banco de dados:
-```bash
-python manage.py migrate
-```
-
-4. Instale as dependências do frontend:
-```bash
-cd frontend
-npm install
-```
-
-### Executando o Projeto
-
-1. Inicie o servidor Django:
-```bash
-cd backend
-python manage.py runserver
-```
-
-2. Inicie o script de monitoramento (em um terminal separado):
-```bash
-cd backend/watchdog_monitoramento
-python watch_xml.py
-```
-
-3. Inicie o servidor de desenvolvimento React (em um terminal separado):
-```bash
-cd frontend
-npm start
-```
-
-## Endpoints da API
-
-- `http://localhost:8000/api/desembaraco/` - Lista todos os dados importados
-
-## Estrutura dos Arquivos XML
-
-O script espera arquivos XML com a seguinte estrutura:
-
-```xml
-<root>
-  <NewReportItem>
-    <ref_giant>valor</ref_giant>
-    <mawb>valor</mawb>
-    <!-- outros campos -->
-  </NewReportItem>
-  <!-- mais itens -->
-</root>
+✉️ Contato
+Flavio Rodrigues - flaviorodriguestrb@gmail.com
