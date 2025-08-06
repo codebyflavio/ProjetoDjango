@@ -18,19 +18,21 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'rest_framework',  
+
+    'rest_framework',
+    'corsheaders',
+
     'dados_importados',
     'api',
-    'corsheaders',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    
-    'corsheaders.middleware.CorsMiddleware',  # Deve vir ANTES de CommonMiddleware
+
+    'corsheaders.middleware.CorsMiddleware',  # deve vir antes de CommonMiddleware
     'django.middleware.common.CommonMiddleware',
-    
+
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -42,7 +44,8 @@ ROOT_URLCONF = 'meu_projeto.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        # <— aqui incluímos seu diretório de templates
+        'DIRS': [BASE_DIR / "Templates"],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -69,18 +72,10 @@ DATABASES = {
 }
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
 LANGUAGE_CODE = 'pt-br'
@@ -89,18 +84,10 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = '/static/'
-
-
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# --------- CORS --------------
-
-# Adicione a porta 5500 que você usa no frontend (Live Server do VSCode, por exemplo)
-CORS_ALLOW_ALL_ORIGINS = True  # No settings.py (apenas para dev)
-
-# Alternativa (libera tudo - para desenvolvimento, mas não recomendado em produção):
-# CORS_ALLOW_ALL_ORIGINS = True
-# settings.py (adicione no final)
+# CORS (apenas para dev)
+CORS_ALLOW_ALL_ORIGINS = True
 
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
@@ -111,9 +98,9 @@ REST_FRAMEWORK = {
     ],
 }
 
-AUTH_USER_MODEL = 'auth.User'  # Modelo padrão de usuário
+# Mantém o modelo padrão de usuário
+AUTH_USER_MODEL = 'auth.User'
 
-# Adicione no final do arquivo
-LOGIN_URL = '/login/'
-LOGIN_REDIRECT_URL = '/'
-LOGOUT_REDIRECT_URL = '/'
+# URLs de redirecionamento após login/logout
+LOGIN_REDIRECT_URL = 'http://127.0.0.1:5500/frontend/index.html'
+LOGOUT_REDIRECT_URL = '/login/'
