@@ -1,5 +1,5 @@
 ﻿document.addEventListener('DOMContentLoaded', () => {
-  const API_URL = 'http://localhost:8000/api-backend/dados/';
+  const API_URL = 'http://localhost:8000/api/dados/';
   const gridElement = document.getElementById('myGrid');
   const searchInput = document.getElementById('search-input');
   const itemsPerPageSelect = document.getElementById('items-per-page');

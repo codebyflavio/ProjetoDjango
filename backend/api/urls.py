@@ -1,9 +1,10 @@
-﻿from django.contrib import admin
+﻿from django.urls import path, include
 from .views import user_info
-from django.urls import path, include
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('api-backend/', include('dados_importados.urls')),
+    # Rota da view que retorna o usuário autenticado
     path('user-info/', user_info),
+
+    # Rota para os dados importados
+    path('dados/', include('dados_importados.urls')),  # acessível em /api/dados/
 ]
