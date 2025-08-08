@@ -7,6 +7,7 @@ urlpatterns = [
 
     # Rota unificada da API
     path('api/', include('api.urls')),
+    path('api/', include('dados_importados.urls')),  # isso deve existir
 
     # Autenticação (login/logout)
     path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),

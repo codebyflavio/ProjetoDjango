@@ -5,8 +5,7 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from .models import DadosImportados
 from .serializers import DadosImportadosSerializer
-from django.http import HttpResponse
-import csv
+from rest_framework.generics import RetrieveUpdateAPIView
 
 # 🔎 Filtros reutilizáveis para listagem
 def aplicar_filtros(queryset, params):
@@ -85,3 +84,12 @@ def detalhes_ou_update_dado(request, ref_giant):
     print("ERROS DE VALIDAÇÃO:", serializer.errors)  # <-- Adicione isso
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+class DadosDetailView(RetrieveUpdateAPIView):
+    queryset = DadosImportados.objects.all()
+    serializer_class = DadosImportadosSerializer
+
+    # campo no modelo que identifica o registro
+    lookup_field = 'ref_giant'           # <-- nome do campo real no modelo
+    # nome do parâmetro na URL que está sendo usado no requests
+    lookup_url_kwarg = 'referencia_giant'  # <-- mantém a sua URL atual
