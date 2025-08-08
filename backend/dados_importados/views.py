@@ -49,9 +49,6 @@ def listar_dados(request):
     ordenacao = request.query_params.get('ordering', '-data_liberacao')
     queryset = queryset.order_by(ordenacao)
 
-    # Exportação CSV
-    if request.query_params.get('format') == 'csv':
-        return exportar_csv(queryset)
 
     # Paginação simples
     pagina = int(request.query_params.get('page', 1))
@@ -88,18 +85,3 @@ def detalhes_ou_update_dado(request, ref_giant):
     print("ERROS DE VALIDAÇÃO:", serializer.errors)  # <-- Adicione isso
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-# 📥 Exporta o queryset como CSV
-def exportar_csv(queryset):
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="dados_importados.csv"'
-
-    writer = csv.writer(response, delimiter=';')
-    cabecalho = [field.verbose_name for field in DadosImportados._meta.fields]
-    writer.writerow(cabecalho)
-
-    for obj in queryset:
-        linha = [getattr(obj, field.name) for field in DadosImportados._meta.fields]
-        writer.writerow(linha)
-
-    return response
